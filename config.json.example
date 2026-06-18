@@ -1,0 +1,30 @@
+{
+  "targets": ["@username1", "@username2"],
+  "messages": [
+    "🔥 streak",
+    "day streak!",
+    "🔥🔥",
+    "keep the fire",
+    "streak day",
+    "yo!",
+    "🔥",
+    "str34k",
+    "don't lose it",
+    "daily",
+    "streak 🔥",
+    "still going",
+    "day N streak",
+    "the flame lives",
+    "fire keeper",
+    "🔥💪",
+    "unbroken",
+    "streaking",
+    "sent with code",
+    "automated 🤖"
+  ],
+  "window_start": 9,
+  "window_end": 11,
+  "webhook_url": null,
+  "min_pause_between_targets": 45,
+  "max_pause_between_targets": 120
+}
