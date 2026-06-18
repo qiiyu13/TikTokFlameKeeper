@@ -3,6 +3,26 @@
 Headless server: no display, no GUI login. You log in **locally**, then move
 the session to the droplet. The droplet only ever runs `run` (headless).
 
+## Quick path (recommended): `./deploy.sh`
+
+Once you've logged in locally (`python3 main.py setup`), from the repo dir on
+your laptop:
+
+```bash
+./deploy.sh        # defaults: SSH_KEY=mediku REMOTE=mediku@<ip> TZ_NAME=Asia/Jakarta
+```
+
+It packages your full profile + config, uploads them, installs everything on the
+droplet (venv, Chromium, systemd timer), and verifies login. You only enter the
+sudo password once. Re-run any time to refresh an expired session. The manual
+steps below explain what it does.
+
+> **Important:** `import-cookies` is NOT enough. The `/messages` page needs the
+> localStorage tokens that only live in the full profile dir, so you must copy
+> the **whole profile** (`deploy.sh` does this; Option B below is the manual
+> equivalent). Cookie-only import passes the homepage check but bounces
+> `/messages` to the login page.
+
 Recommended droplet: Ubuntu 22.04/24.04, 1 GB RAM minimum (Chromium needs it).
 DigitalOcean's default user is **root**, so paths below assume `/root`.
 
