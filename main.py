@@ -38,13 +38,14 @@ def cmd_setup(_args):
         log.info("Config created at %s — edit targets and messages", config_dest)
 
     async def _setup():
-        browser = StealthBrowser(headless=False)
+        browser = StealthBrowser(headless=False, stealth=False)
         try:
             await browser.start()
-            log.info("Browser opened. Log into TikTok manually in the browser window.")
-            log.info("After login, press Enter here to save and exit...")
-            await asyncio.get_event_loop().run_in_executor(None, input)
-            log.info("Profile saved to %s", "/home/$USER/.tiktok-flamekeeper/profile")
+            await browser.page.goto("https://www.tiktok.com/login", wait_until="domcontentloaded")
+            log.info("Browser opened. Log into TikTok in the browser window.")
+            log.info("Close the browser tab/window when done logging in.")
+            await browser.wait_for_close()
+            log.info("Profile saved to ~/.tiktok-flamekeeper/profile")
         finally:
             await browser.close()
 
@@ -82,12 +83,50 @@ def cmd_log(args):
         print(f"{ts}  {target_name:20s}  {msg}")
 
 
+def cmd_import_cookies(args):
+    """Import cookies from real browser login."""
+    import json as _json
+    from browser import StealthBrowser
+
+    cookie_file = Path(args.file)
+    if not cookie_file.exists():
+        log.error("Cookie file not found: %s", cookie_file)
+        sys.exit(1)
+
+    raw = _json.loads(cookie_file.read_text())
+
+    if isinstance(raw, list):
+        cookies = raw
+    elif isinstance(raw, dict):
+        cookies = [
+            {"name": k, "value": v, "domain": ".tiktok.com", "path": "/"}
+            for k, v in raw.items()
+        ]
+    else:
+        log.error("Invalid cookie format. Use JSON array or {name: value} object.")
+        sys.exit(1)
+
+    async def _import():
+        browser = StealthBrowser(headless=not args.show, stealth=False)
+        try:
+            await browser.start()
+            await browser.page.goto("https://www.tiktok.com", wait_until="domcontentloaded")
+            await browser.context.add_cookies(cookies)
+            await browser.page.reload()
+            logged_in = await browser.check_login()
+            log.info("Cookies imported. Login: %s", "OK" if logged_in else "FAILED")
+        finally:
+            await browser.close()
+
+    asyncio.run(_import())
+
+
 def cmd_test(_args):
     """Quick smoke test: check login state only."""
     from browser import StealthBrowser
 
     async def _test():
-        browser = StealthBrowser(headless=False)
+        browser = StealthBrowser(headless=not _args.show, stealth=True)
         try:
             await browser.start()
             logged_in = await browser.check_login()
@@ -115,6 +154,11 @@ def main():
     log_p.add_argument("--n", type=int, default=30, help="Number of entries")
 
     test_p = sub.add_parser("test", help="Test login state only")
+    test_p.add_argument("--show", action="store_true", help="Show browser (needs display)")
+
+    import_p = sub.add_parser("import-cookies", help="Import cookies from real browser")
+    import_p.add_argument("file", help="Path to cookies.json")
+    import_p.add_argument("--show", action="store_true", help="Show browser (needs display; omit on headless server)")
 
     args = parser.parse_args()
 
@@ -126,6 +170,8 @@ def main():
         cmd_log(args)
     elif args.command == "test":
         cmd_test(args)
+    elif args.command == "import-cookies":
+        cmd_import_cookies(args)
     else:
         parser.print_help()
 

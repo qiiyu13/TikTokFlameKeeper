@@ -7,15 +7,18 @@ CONFIG_DEST="$HOME/.tiktok-flamekeeper/config.json"
 echo "=== TikTok FlameKeeper Install ==="
 echo ""
 
-# System deps for Playwright Chromium
+# System deps for Playwright Chromium.
+# Best-effort: package names differ across Ubuntu releases (e.g. libasound2 ->
+# libasound2t64 on 24.04). `playwright install --with-deps` below is the
+# authoritative step, so don't abort the whole install if one name is stale.
 echo "[1/6] Installing system dependencies..."
 sudo apt-get update -qq
+sudo apt-get install -y -qq python3 python3-pip python3-venv > /dev/null
 sudo apt-get install -y -qq \
-    python3 python3-pip python3-venv \
     libnss3 libnspr4 libatk-bridge2.0-0 libdrm2 \
     libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 \
     libgbm1 libpango-1.0-0 libcairo2 libasound2 \
-    libatspi2.0-0 libcups2 libx11-xcb1 > /dev/null
+    libatspi2.0-0 libcups2 libx11-xcb1 > /dev/null 2>&1 || true
 
 # Copy project files
 echo "[2/6] Installing project files..."
@@ -25,9 +28,11 @@ sudo cp "$SCRIPT_DIR"/main.py "$SCRIPT_DIR"/browser.py "$SCRIPT_DIR"/db.py "$SCR
 sudo cp "$SCRIPT_DIR"/requirements.txt "$INSTALL_DIR/"
 sudo cp "$SCRIPT_DIR"/config.json.example "$INSTALL_DIR/"
 
-# Python deps
+# Python deps. Ubuntu 24.04 marks the system env "externally managed" (PEP 668),
+# so retry with --break-system-packages if the plain install is refused.
 echo "[3/6] Installing Python dependencies..."
-sudo pip3 install -q -r "$INSTALL_DIR/requirements.txt"
+sudo pip3 install -q -r "$INSTALL_DIR/requirements.txt" || \
+    sudo pip3 install -q --break-system-packages -r "$INSTALL_DIR/requirements.txt"
 
 # Playwright browser
 echo "[4/6] Installing Chromium for Playwright..."
@@ -85,10 +90,11 @@ sudo systemctl enable --now tiktok-flamekeeper.timer
 echo ""
 echo "=== Installation complete ==="
 echo ""
-echo "Next steps:"
-echo "  1. Edit config:   nano $CONFIG_DEST"
-echo "  2. Run setup:      cd $INSTALL_DIR && python3 main.py setup"
-echo "     (do this on your LOCAL machine, then copy ~/.tiktok-flamekeeper/profile/ to the droplet)"
-echo "  3. Check logs:     journalctl -u tiktok-flamekeeper -f"
-echo "  4. Manual run:     python3 $INSTALL_DIR/main.py run"
-echo "  5. Show history:   python3 $INSTALL_DIR/main.py log"
+echo "Next steps (see DEPLOY.md for the full guide):"
+echo "  1. Edit config:    nano $CONFIG_DEST"
+echo "  2. Log in LOCALLY: python3 main.py setup   (needs a display)"
+echo "  3. Move session:   scp cookies.json to droplet, then"
+echo "                     python3 $INSTALL_DIR/main.py import-cookies /root/cookies.json"
+echo "  4. Verify:         python3 $INSTALL_DIR/main.py test   (expect Login: OK)"
+echo "  5. Set timezone:   sudo timedatectl set-timezone <your/zone>"
+echo "  6. Check logs:     journalctl -u tiktok-flamekeeper -f"

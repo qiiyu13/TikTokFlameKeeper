@@ -4,8 +4,12 @@ from datetime import datetime
 
 log = logging.getLogger(__name__)
 
+# Bare token only safe in the URL — TikTok embeds "captcha" in hidden page
+# scripts, so matching it against body text fires on every page.
+CAPTCHA_URL_PATTERNS = ['captcha', 'verify']
+
+# Phrases distinctive enough to match against visible body text.
 CAPTCHA_PATTERNS = [
-    'captcha',
     'verify you are human',
     'too many attempts',
     'security verification',
@@ -25,16 +29,16 @@ RATE_LIMIT_PATTERNS = [
 ]
 
 
-def check_page(page) -> str | None:
+async def check_page(page) -> str | None:
     """Check current page for captcha, login, or rate-limit. Returns problem type or None."""
     try:
         url = page.url.lower()
-        for p in CAPTCHA_PATTERNS:
+        for p in CAPTCHA_URL_PATTERNS:
             if p in url:
                 log.warning("CAPTCHA detected in URL: %s", page.url)
                 return "captcha"
 
-        body_text = page.text_content("body", timeout=3000) or ""
+        body_text = await page.text_content("body", timeout=3000) or ""
         body_lower = body_text.lower()
 
         for p in CAPTCHA_PATTERNS:
